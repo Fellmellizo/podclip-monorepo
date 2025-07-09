@@ -145,9 +145,9 @@ app.get('/job/:id', (req, res) => {
 });
 app.get('/', (req, res) => {
   res.send('🚀 Backend de PodClip está funcionando correctamente');
-});//* cambio para que coja en render*//
+});
+
 app.listen(port, () => {
   console.log(`✅ Backend corriendo en http://localhost:${port}`);
 });
-
 

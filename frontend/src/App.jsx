@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Play, Settings, Loader2, Music, Image as ImageIcon } from 'lucide-react';
+const baseURL = import.meta.env.MODE === 'development'
+  ? 'http://localhost:3001'
+  : 'https://podclip.onrender.com';
 
 const PodClipApp = () => {
   const [audioFile, setAudioFile] = useState(null);
@@ -20,7 +23,8 @@ const PodClipApp = () => {
     if (jobId && isProcessing) {
       const interval = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:3001/job/${jobId}`);
+          const response = await fetch(`${baseURL}/job/${jobId}`);
+
           const status = await response.json();
           setJobStatus(status);
 
@@ -84,7 +88,8 @@ const PodClipApp = () => {
       formData.append('social_platform', settings.socialPlatform);
       formData.append('auto_captions', settings.autoCaptions);
 
-      const response = await fetch('http://localhost:3001/process-podcast', {
+      const response = await fetch(`${baseURL}/process-podcast`, {
+
         method: 'POST',
         body: formData
       });

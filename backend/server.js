@@ -143,7 +143,11 @@ app.get('/job/:id', (req, res) => {
     res.status(404).json({ error: 'Trabajo no encontrado' });
   }
 });
-
+app.get('/', (req, res) => {
+  res.send('🚀 Backend de PodClip está funcionando correctamente');
+});//* cambio para que coja en render*//
 app.listen(port, () => {
   console.log(`✅ Backend corriendo en http://localhost:${port}`);
 });
+
+

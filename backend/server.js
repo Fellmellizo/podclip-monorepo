@@ -40,7 +40,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage }).fields([
   { name: 'audio', maxCount: 1 },
-  { name: 'image', maxCount: 100 }
+  { name: 'image', maxCount: 100 },
+  { name: 'video', maxCount: 1 }
 ]);
 
 // Job tracking
@@ -113,6 +114,77 @@ app.post('/process-podcast', upload, (req, res) => {
       }
 
       command
+        .output(outputPath)
+        .on('end', () => {
+          completed++;
+          jobs[jobId].clips_generated = completed;
+          jobs[jobId].progress = Math.round((completed / numClips) * 100);
+          jobs[jobId].download_urls.push(`/public/clips/${outputName}`);
+          if (completed === numClips) {
+            jobs[jobId].status = 'completed';
+          }
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err.message);
+          jobs[jobId].status = 'failed';
+          jobs[jobId].error_message = err.message;
+        })
+        .run();
+    }
+
+    res.json({ job_id: jobId });
+  });
+});
+
+app.post('/process-video', upload, (req, res) => {
+  const clipDuration = parseInt(req.body.clip_duration) || 60;
+  const videoFile = req.files?.video?.[0];
+
+  if (!videoFile) {
+    return res.status(400).json({ error: 'Archivo de video no recibido' });
+  }
+
+  const inputPath = videoFile.path;
+  const outputDir = path.join(__dirname, 'public', 'clips');
+  if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+  const jobId = uuidv4();
+  jobs[jobId] = {
+    status: 'processing',
+    progress: 0,
+    total_clips: 0,
+    clips_generated: 0,
+    download_urls: []
+  };
+
+  ffmpeg.ffprobe(inputPath, (err, metadata) => {
+    if (err) {
+      jobs[jobId].status = 'failed';
+      jobs[jobId].error_message = err.message;
+      return res.status(500).json({ error: err.message });
+    }
+
+    const duration = metadata.format.duration;
+    const numClips = Math.floor(duration / clipDuration);
+    jobs[jobId].total_clips = numClips;
+    let completed = 0;
+
+    for (let i = 0; i < numClips; i++) {
+      const start = i * clipDuration;
+      const outputName = `${jobId}_clip${i + 1}.mp4`;
+      const outputPath = path.join(outputDir, outputName);
+
+      ffmpeg(inputPath)
+        .setStartTime(start)
+        .duration(clipDuration)
+        .outputOptions([
+          '-c:v libx264',
+          '-preset veryfast',
+          '-crf 23',
+          '-c:a aac',
+          '-b:a 128k',
+          '-movflags +faststart'
+        ])
         .output(outputPath)
         .on('end', () => {
           completed++;

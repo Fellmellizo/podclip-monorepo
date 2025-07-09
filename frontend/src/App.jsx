@@ -5,6 +5,7 @@ const baseURL = 'http://localhost:3001';
 
 const PodClipApp = () => {
   const [audioFile, setAudioFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [settings, setSettings] = useState({
     clipDuration: 60,
@@ -43,8 +44,19 @@ const PodClipApp = () => {
     const file = event.target.files[0];
     if (file && file.type.startsWith('audio/')) {
       setAudioFile(file);
+      setVideoFile(null);
     } else {
       alert('Por favor selecciona un archivo de audio válido');
+    }
+  };
+
+  const handleVideoUpload = (event) => {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('video/')) {
+      setVideoFile(file);
+      setAudioFile(null);
+    } else {
+      alert('Por favor selecciona un archivo de video válido');
     }
   };
 
@@ -70,7 +82,7 @@ const PodClipApp = () => {
   };
 
   const handleProcess = async () => {
-    if (!audioFile) return alert('Por favor selecciona un archivo de audio');
+    if (!videoFile && !audioFile) return alert('Por favor selecciona un archivo de audio o video');
     if (!settings.showName || !settings.episodeTitle) {
       return alert('Por favor completa el nombre del show y título del episodio');
     }
@@ -79,16 +91,20 @@ const PodClipApp = () => {
 
     try {
       const formData = new FormData();
-      formData.append('audio', audioFile);
-      imageFiles.forEach(img => formData.append('image', img));
+      if (videoFile) {
+        formData.append('video', videoFile);
+      } else {
+        formData.append('audio', audioFile);
+        imageFiles.forEach(img => formData.append('image', img));
+      }
       formData.append('clip_duration', settings.clipDuration);
       formData.append('show_name', settings.showName);
       formData.append('episode_title', settings.episodeTitle);
       formData.append('social_platform', settings.socialPlatform);
       formData.append('auto_captions', settings.autoCaptions);
 
-      const response = await fetch(`${baseURL}/process-podcast`, {
-
+      const endpoint = videoFile ? 'process-video' : 'process-podcast';
+      const response = await fetch(`${baseURL}/${endpoint}`, {
         method: 'POST',
         body: formData
       });
@@ -143,6 +159,35 @@ const PodClipApp = () => {
                   <Upload className="mx-auto mb-2" size={40} />
                   <p>Haz clic o arrastra tu archivo de audio aquí</p>
                   <p className="text-sm text-gray-400 mt-1">Formatos soportados: MP3, WAV, M4A, OGG</p>
+                </>
+              )}
+            </label>
+          </div>
+        </div>
+
+        {/* Video Upload */}
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-gray-800">
+          <h2 className="text-2xl font-semibold mb-4 flex items-center">
+            <Play className="mr-2" size={24} /> Subir Archivo de Video
+          </h2>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500">
+            <input
+              type="file"
+              accept="video/*"
+              onChange={handleVideoUpload}
+              className="hidden"
+              id="video-upload"
+            />
+            <label htmlFor="video-upload" className="cursor-pointer block">
+              {videoFile ? (
+                <div className="flex items-center justify-center text-green-600 font-medium">
+                  <Play className="mr-2" size={20} /> {videoFile.name}
+                </div>
+              ) : (
+                <>
+                  <Upload className="mx-auto mb-2" size={40} />
+                  <p>Haz clic o arrastra tu archivo de video aquí</p>
+                  <p className="text-sm text-gray-400 mt-1">Formatos soportados: MP4, MOV, AVI</p>
                 </>
               )}
             </label>
@@ -243,9 +288,9 @@ const PodClipApp = () => {
           <div className="text-center mt-6">
             <button
               onClick={handleProcess}
-              disabled={isProcessing || !audioFile}
+              disabled={isProcessing || (!audioFile && !videoFile)}
               className={`px-8 py-3 rounded-lg font-semibold text-white ${
-                isProcessing || !audioFile ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
+                isProcessing || (!audioFile && !videoFile) ? 'bg-gray-400' : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
               {isProcessing ? (

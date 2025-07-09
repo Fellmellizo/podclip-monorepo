@@ -7,9 +7,11 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
-/*const port = 3001;  CORRER EN LOCAL*/
 const port = process.env.PORT || 3001;
 
 ffmpeg.setFfmpegPath(ffmpegPath);
@@ -17,9 +19,26 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Middleware
-app.use(cors());
+// ✅ Configuración CORS
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://podclip.onrender.com'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
+
+// ✅ Archivos públicos (clips generados)
 app.use('/public', express.static(path.join(__dirname, 'public'), {
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.mp3')) res.set('Content-Type', 'audio/mpeg');
@@ -27,7 +46,7 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
   }
 }));
 
-// Multer setup
+// ✅ Configuración Multer
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, 'uploads');
@@ -44,7 +63,7 @@ const upload = multer({ storage }).fields([
   { name: 'image', maxCount: 100 }
 ]);
 
-// Job tracking
+// ✅ Estado de los trabajos
 const jobs = {};
 
 app.post('/process-podcast', upload, (req, res) => {
@@ -144,6 +163,7 @@ app.get('/job/:id', (req, res) => {
     res.status(404).json({ error: 'Trabajo no encontrado' });
   }
 });
+
 app.get('/', (req, res) => {
   res.send('🚀 Backend de PodClip está funcionando correctamente');
 });
@@ -151,4 +171,3 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`✅ Backend corriendo en http://localhost:${port}`);
 });
-

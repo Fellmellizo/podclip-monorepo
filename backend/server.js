@@ -11,7 +11,13 @@ import { fileURLToPath } from 'url';
 const app = express();
 const port = 3001;
 
-ffmpeg.setFfmpegPath(ffmpegPath);
+// Configure paths so fluent-ffmpeg can find the binaries. Si por alguna
+// razón ffmpeg-static no logró descargar el binario (por ejemplo, sin
+// acceso a internet), utilizamos la versión instalada en el sistema.
+const ffmpegBinary = fs.existsSync(ffmpegPath) ? ffmpegPath : '/usr/bin/ffmpeg';
+const ffprobeBinary = '/usr/bin/ffprobe';
+ffmpeg.setFfmpegPath(ffmpegBinary);
+ffmpeg.setFfprobePath(ffprobeBinary);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +32,11 @@ app.use('/public', express.static(path.join(__dirname, 'public'), {
   }
 }));
 
-// Multer setup
+// ---------------------------
+// Configuración de Multer
+// ---------------------------
+// Guardamos todos los archivos cargados en la carpeta "uploads" con un
+// nombre basado en la fecha para evitar colisiones.
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, 'uploads');
@@ -44,11 +54,26 @@ const upload = multer({ storage }).fields([
   { name: 'video', maxCount: 1 }
 ]);
 
-// Job tracking
+// ---------------------------------------
+// Objeto en memoria para rastrear los trabajos
+// ---------------------------------------
+// Cada solicitud genera un ID único y se almacena en este
+// objeto con información sobre el avance. En un entorno real
+// se recomendaría usar una base de datos o un sistema de colas
+// persitente.
 const jobs = {};
 
+// ---------------------------
+// Procesamiento de podcasts (audio + imágenes)
+// ---------------------------
+// Divide un archivo de audio en varios clips. Si el usuario proporciona
+// imágenes, cada clip se combina con una imagen para generar un video.
+// Si no se proporcionan imágenes se exporta audio puro en formato MP3.
 app.post('/process-podcast', upload, (req, res) => {
+  // Duración en segundos de cada clip. Si el usuario no especifica nada
+  // usamos 60s por defecto.
   const clipDuration = parseInt(req.body.clip_duration) || 60;
+  // Archivos enviados por el usuario
   const audioFile = req.files?.audio?.[0];
   const imageFiles = req.files?.image || [];
 
@@ -56,10 +81,12 @@ app.post('/process-podcast', upload, (req, res) => {
     return res.status(400).json({ error: 'Archivo de audio no recibido' });
   }
 
+  // Rutas de entrada y salida
   const inputPath = audioFile.path;
   const outputDir = path.join(__dirname, 'public', 'clips');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
+  // Creamos un identificador único para este proceso y lo registramos
   const jobId = uuidv4();
   jobs[jobId] = {
     status: 'processing',
@@ -69,6 +96,7 @@ app.post('/process-podcast', upload, (req, res) => {
     download_urls: []
   };
 
+  // Obtenemos la duración total del audio con ffprobe
   ffmpeg.ffprobe(inputPath, (err, metadata) => {
     if (err) {
       jobs[jobId].status = 'failed';
@@ -81,6 +109,7 @@ app.post('/process-podcast', upload, (req, res) => {
     jobs[jobId].total_clips = numClips;
     let completed = 0;
 
+    // Recorremos y generamos cada clip de manera asíncrona
     for (let i = 0; i < numClips; i++) {
       const start = i * clipDuration;
       const imagePath = imageFiles[i % imageFiles.length]?.path || null;
@@ -90,6 +119,7 @@ app.post('/process-podcast', upload, (req, res) => {
       let command;
 
       if (imagePath) {
+        // Generación de video a partir de una imagen estática y el audio
         command = ffmpeg()
           .input(imagePath)
           .loop(clipDuration)
@@ -108,6 +138,7 @@ app.post('/process-podcast', upload, (req, res) => {
             '-movflags +faststart'
           ]);
       } else {
+        // Si no hay imágenes solo recortamos el audio
         command = ffmpeg(inputPath)
           .setStartTime(start)
           .duration(clipDuration);
@@ -115,6 +146,7 @@ app.post('/process-podcast', upload, (req, res) => {
 
       command
         .output(outputPath)
+        // Cuando termina la generación de un clip actualizamos el estado
         .on('end', () => {
           completed++;
           jobs[jobId].clips_generated = completed;
@@ -124,6 +156,7 @@ app.post('/process-podcast', upload, (req, res) => {
             jobs[jobId].status = 'completed';
           }
         })
+        // En caso de error marcamos el trabajo como fallido
         .on('error', (err) => {
           console.error('FFmpeg error:', err.message);
           jobs[jobId].status = 'failed';
@@ -136,6 +169,12 @@ app.post('/process-podcast', upload, (req, res) => {
   });
 });
 
+// ---------------------------
+// Procesamiento de video directamente
+// ---------------------------
+// Cuando el usuario sube únicamente un video, esta ruta divide el archivo
+// en clips de la duración solicitada sin necesidad de imágenes o audio
+// adicionales.
 app.post('/process-video', upload, (req, res) => {
   const clipDuration = parseInt(req.body.clip_duration) || 60;
   const videoFile = req.files?.video?.[0];
@@ -144,10 +183,12 @@ app.post('/process-video', upload, (req, res) => {
     return res.status(400).json({ error: 'Archivo de video no recibido' });
   }
 
+  // Rutas de trabajo para el video subido
   const inputPath = videoFile.path;
   const outputDir = path.join(__dirname, 'public', 'clips');
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
+  // Registramos el trabajo con un ID único
   const jobId = uuidv4();
   jobs[jobId] = {
     status: 'processing',
@@ -157,6 +198,7 @@ app.post('/process-video', upload, (req, res) => {
     download_urls: []
   };
 
+  // Con ffprobe obtenemos la duración total del video
   ffmpeg.ffprobe(inputPath, (err, metadata) => {
     if (err) {
       jobs[jobId].status = 'failed';
@@ -169,6 +211,7 @@ app.post('/process-video', upload, (req, res) => {
     jobs[jobId].total_clips = numClips;
     let completed = 0;
 
+    // Generamos cada clip individual
     for (let i = 0; i < numClips; i++) {
       const start = i * clipDuration;
       const outputName = `${jobId}_clip${i + 1}.mp4`;
@@ -186,6 +229,7 @@ app.post('/process-video', upload, (req, res) => {
           '-movflags +faststart'
         ])
         .output(outputPath)
+        // Actualizamos los datos del trabajo al finalizar cada clip
         .on('end', () => {
           completed++;
           jobs[jobId].clips_generated = completed;
@@ -195,6 +239,7 @@ app.post('/process-video', upload, (req, res) => {
             jobs[jobId].status = 'completed';
           }
         })
+        // Manejo de errores de FFmpeg
         .on('error', (err) => {
           console.error('FFmpeg error:', err.message);
           jobs[jobId].status = 'failed';

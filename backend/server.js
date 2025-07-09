@@ -11,7 +11,12 @@ import { fileURLToPath } from 'url';
 const app = express();
 const port = 3001;
 
-ffmpeg.setFfmpegPath(ffmpegPath);
+const customFfmpeg = process.env.FFMPEG_PATH || '/usr/bin/ffmpeg';
+const customFfprobe = process.env.FFPROBE_PATH || '/usr/bin/ffprobe';
+ffmpeg.setFfmpegPath(fs.existsSync(customFfmpeg) ? customFfmpeg : ffmpegPath);
+if (fs.existsSync(customFfprobe)) {
+  ffmpeg.setFfprobePath(customFfprobe);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

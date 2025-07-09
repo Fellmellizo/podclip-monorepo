@@ -1,0 +1,14 @@
+# Node
+node_modules/
+uploads/
+public/clips/
+
+# Logs
+*.log
+
+# Vite
+dist/
+
+# Sistema
+.DS_Store
+.env

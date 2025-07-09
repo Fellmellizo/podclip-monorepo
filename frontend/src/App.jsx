@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Play, Settings, Loader2, Music, Image as ImageIcon } from 'lucide-react';
-const baseURL = import.meta.env.MODE === 'development'
-  ? 'http://localhost:3001'
-  : 'https://podclip.onrender.com';
+// Solo utilizamos el servidor local durante el desarrollo
+const baseURL = 'http://localhost:3001';
 
 const PodClipApp = () => {
   const [audioFile, setAudioFile] = useState(null);
@@ -114,15 +113,15 @@ const PodClipApp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 text-white p-4">
+      <div className="w-full max-w-5xl mx-auto space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">🎙️ PodClip</h1>
-          <p className="text-gray-600 text-lg">Convierte tu podcast en clips virales para redes sociales</p>
+          <h1 className="text-5xl font-bold mb-2">🎙️ PodClip</h1>
+          <p className="text-lg opacity-90">Convierte tu podcast en clips virales para redes sociales</p>
         </div>
 
         {/* Audio Upload */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-gray-800">
           <h2 className="text-2xl font-semibold mb-4 flex items-center">
             <Music className="mr-2" size={24} /> Subir Archivo de Audio
           </h2>
@@ -151,7 +150,7 @@ const PodClipApp = () => {
         </div>
 
         {/* Imagenes con Drag & Drop */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-gray-800">
           <h2 className="text-2xl font-semibold mb-4 flex items-center">
             <ImageIcon className="mr-2" size={24} /> Subir Imágenes para los Clips
           </h2>
@@ -208,7 +207,7 @@ const PodClipApp = () => {
         </div>
 
         {/* Configuración y Botón */}
-        <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-gray-800">
           <h2 className="text-2xl font-semibold mb-4 flex items-center">
             <Settings className="mr-2" size={24} /> Configuración
           </h2>
@@ -263,7 +262,7 @@ const PodClipApp = () => {
 
         {/* Estado */}
         {jobStatus && (
-          <div className="bg-white rounded-2xl shadow-xl p-6">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-gray-800">
             <h2 className="text-2xl font-semibold mb-4">Estado del Proceso</h2>
             <div className={`font-semibold ${getStatusColor(jobStatus.status)}`}>
               {jobStatus.status}

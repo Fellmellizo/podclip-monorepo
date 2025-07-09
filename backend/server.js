@@ -9,7 +9,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const app = express();
-const port = 3001;
+/*const port = 3001;  CORRER EN LOCAL*/
+const port = process.env.PORT || 3001;
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 

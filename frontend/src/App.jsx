@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Play, Settings, Loader2, Music, Image as ImageIcon } from 'lucide-react';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
 const PodClipApp = () => {
   const [audioFile, setAudioFile] = useState(null);
@@ -20,7 +21,9 @@ const PodClipApp = () => {
     if (jobId && isProcessing) {
       const interval = setInterval(async () => {
         try {
-          const response = await fetch(`http://localhost:3001/job/${jobId}`);
+          /*const response = await fetch(`http://localhost:3001/job/${jobId}`);*/
+          const response = await fetch(`${BACKEND_URL}/job/${jobId}`);
+
           const status = await response.json();
           setJobStatus(status);
 
@@ -84,7 +87,9 @@ const PodClipApp = () => {
       formData.append('social_platform', settings.socialPlatform);
       formData.append('auto_captions', settings.autoCaptions);
 
-      const response = await fetch('http://localhost:3001/process-podcast', {
+     /* const response = await fetch('http://localhost:3001/process-podcast', {*/
+     const response = await fetch(`${BACKEND_URL}/process-podcast`, {
+
         method: 'POST',
         body: formData
       });
@@ -271,7 +276,9 @@ const PodClipApp = () => {
     {jobStatus.download_urls.map((url, i) => (
       <a
         key={i}
-        href={`http://localhost:3001${url}`}
+        /*href={`http://localhost:3001${url}`}*/
+        href={`${BACKEND_URL}${url}`}
+
         className="text-green-700 underline text-sm"
         download={`clip${i + 1}.mp4`}
       >
@@ -294,3 +301,4 @@ const PodClipApp = () => {
 };
 
 export default PodClipApp;
+/* INICIAR SIEMPRE node server.js */
